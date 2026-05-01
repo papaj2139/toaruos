@@ -411,6 +411,7 @@ void process_release_directory(page_directory_t * dir) {
 
 process_t * spawn_kidle(int bsp) {
 	process_t * idle = calloc(1,sizeof(process_t));
+	idle->process = idle;
 	idle->id = -1;
 	idle->name = strdup("[kidle]");
 	idle->flags = PROC_FLAG_IS_TASKLET | PROC_FLAG_STARTED | PROC_FLAG_RUNNING;
@@ -440,6 +441,7 @@ process_t * spawn_init(void) {
 	process_t * init = calloc(1,sizeof(process_t));
 	tree_set_root(process_tree, (void*)init);
 
+	init->process = init;
 	init->tree_entry = process_tree->root;
 	init->id         = 1;
 	init->group      = 0;
@@ -1045,11 +1047,6 @@ static int wait_candidate(volatile process_t * parent, int pid, int options, vol
 
 int waitpid(int pid, int * status, int options) {
 	volatile process_t * volatile proc = (process_t*)this_core->current_process;
-	#if 0
-	if (proc->group) {
-		proc = process_from_pid(proc->group);
-	}
-	#endif
 
 	do {
 		volatile process_t * candidate = NULL;
@@ -1059,13 +1056,15 @@ int waitpid(int pid, int * status, int options) {
 		spin_lock(proc->wait_lock);
 
 		/* First, find out if there is anyone to reap */
-		foreach(node, proc->tree_entry->children) {
+		foreach(node, proc->process->tree_entry->children) {
 			if (!node->value) {
 				continue;
 			}
 			volatile process_t * volatile child = ((tree_node_t *)node->value)->value;
 
-			if (wait_candidate(proc, pid, options, child)) {
+			if (child == proc) continue; /* Don't allow a thread to wait on itself */
+
+			if (wait_candidate(proc->process, pid, options, child)) {
 				has_children = 1;
 				is_parent = 1;
 				if (child->flags & PROC_FLAG_FINISHED) {
@@ -1121,7 +1120,7 @@ int waitpid(int pid, int * status, int options) {
 				return 0;
 			}
 			/* Wait */
-			if (sleep_on_unlocking(proc->wait_queue, &proc->wait_lock) != 0) {
+			if (sleep_on_unlocking(proc->process->wait_queue, &proc->wait_lock) != 0) {
 				return -EINTR;
 			}
 		}
@@ -1381,7 +1380,8 @@ pid_t fork(void) {
 	uintptr_t sp, bp;
 	process_t * parent = (process_t*)this_core->current_process;
 	union PML * directory = mmu_clone(parent->thread.page_directory->directory);
-	process_t * new_proc = spawn_process(parent, 0, 1);
+	process_t * new_proc = spawn_process(parent->process, 0, 1);
+	new_proc->process = new_proc;
 	new_proc->thread.page_directory = malloc(sizeof(page_directory_t));
 	new_proc->thread.page_directory->refcount = 1;
 	new_proc->thread.page_directory->directory = directory;
@@ -1423,7 +1423,9 @@ pid_t fork(void) {
 pid_t clone(uintptr_t new_stack, uintptr_t thread_func, uintptr_t arg) {
 	uintptr_t sp, bp;
 	process_t * parent = (process_t *)this_core->current_process;
-	process_t * new_proc = spawn_process(this_core->current_process, 1, 0);
+	process_t * new_proc = spawn_process(parent->process, 1, 0);
+	new_proc->process = parent->process;
+	new_proc->group = parent->process->id;
 	new_proc->thread.page_directory = this_core->current_process->thread.page_directory;
 	spin_lock(new_proc->thread.page_directory->lock);
 	new_proc->thread.page_directory->refcount++;
@@ -1435,14 +1437,6 @@ pid_t clone(uintptr_t new_stack, uintptr_t thread_func, uintptr_t arg) {
 	memcpy(&r, parent->syscall_registers, sizeof(struct regs));
 	sp = new_proc->image.stack;
 	bp = sp;
-
-	/* Set the gid */
-	if (this_core->current_process->group) {
-		new_proc->group = this_core->current_process->group;
-	} else {
-		/* We are the session leader */
-		new_proc->group = this_core->current_process->id;
-	}
 
 	/* different calling convention */
 	#if defined(__x86_64__)
@@ -1477,6 +1471,7 @@ process_t * spawn_worker_thread(void (*entrypoint)(void * argp), const char * na
 
 	proc->flags = PROC_FLAG_IS_TASKLET | PROC_FLAG_STARTED;
 
+	proc->process     = proc;
 	proc->id          = get_next_pid();
 	proc->group       = proc->id;
 	proc->name        = strdup(name);

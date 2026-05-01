@@ -172,6 +172,8 @@ typedef struct process {
 	spin_lock_t sig_lock;
 
 	list_t * sig_queue;
+
+	struct process * process;
 } process_t;
 
 typedef struct {
