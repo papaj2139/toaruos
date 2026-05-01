@@ -143,7 +143,7 @@ typedef struct process {
 
 	spin_lock_t sched_lock;
 
-	struct signal_config signals[NUMSIGNALS+1];
+	struct signal_config *signals;
 	sigset_t blocked_signals;
 	sigset_t pending_signals;
 	sigset_t awaited_signals;

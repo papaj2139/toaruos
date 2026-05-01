@@ -433,6 +433,7 @@ process_t * spawn_kidle(int bsp) {
 	idle->thread.page_directory = malloc(sizeof(page_directory_t));
 	idle->thread.page_directory->refcount = 1;
 	idle->thread.page_directory->directory = mmu_clone(this_core->current_pml);
+	idle->signals = NULL;
 	spin_init(idle->thread.page_directory->lock);
 	return idle;
 }
@@ -455,6 +456,7 @@ process_t * spawn_init(void) {
 	init->real_user_group = USER_ROOT_UID;
 	init->mask       = 022;
 	init->status     = 0;
+	init->signals    = calloc(NUMSIGNALS+1, sizeof(struct signal_config));
 
 	init->fds           = malloc(sizeof(fd_table_t));
 	init->fds->refs     = 1;
@@ -591,6 +593,10 @@ void process_reap(process_t * proc) {
 			free(list_pop(proc->tracees));
 		}
 		free(proc->tracees);
+	}
+
+	if (proc == proc->process) {
+		free(proc->signals);
 	}
 
 	/* Unmark the stack bottom's fault detector */
@@ -1387,6 +1393,7 @@ pid_t fork(void) {
 	new_proc->thread.page_directory->directory = directory;
 	spin_init(new_proc->thread.page_directory->lock);
 
+	new_proc->signals = calloc(NUMSIGNALS + 1, sizeof(struct signal_config));
 	memcpy(new_proc->signals, parent->signals, sizeof(struct signal_config) * (NUMSIGNALS+1));
 	new_proc->blocked_signals = parent->blocked_signals;
 
@@ -1430,7 +1437,8 @@ pid_t clone(uintptr_t new_stack, uintptr_t thread_func, uintptr_t arg) {
 	spin_lock(new_proc->thread.page_directory->lock);
 	new_proc->thread.page_directory->refcount++;
 	spin_unlock(new_proc->thread.page_directory->lock);
-	memcpy(new_proc->signals, parent->signals, sizeof(struct signal_config) * (NUMSIGNALS+1));
+
+	new_proc->signals = parent->process->signals;
 	new_proc->blocked_signals = parent->blocked_signals;
 
 	struct regs r;
@@ -1486,6 +1494,8 @@ process_t * spawn_worker_thread(void (*entrypoint)(void * argp), const char * na
 	proc->mask        = 0;
 	proc->job         = proc->id;
 	proc->session     = proc->id;
+
+	proc->signals = calloc(NUMSIGNALS+1, sizeof(struct signal_config));
 
 	proc->thread.page_directory = malloc(sizeof(page_directory_t));
 	proc->thread.page_directory->refcount = 1;
