@@ -372,7 +372,7 @@ long sys_open(const char * file, long flags, long mode) {
 	}
 
 	if (!(flags & O_WRONLY) || (flags & O_RDWR)) {
-		if (node && !has_permission(node, 04)) {
+		if (node && !has_permission(node, R_OK)) {
 			close_fs(node);
 			return -EACCES;
 		} else {
@@ -381,7 +381,7 @@ long sys_open(const char * file, long flags, long mode) {
 	}
 
 	if ((flags & O_RDWR) || (flags & O_WRONLY)) {
-		if (node && !has_permission(node, 02)) {
+		if (node && !has_permission(node, W_OK)) {
 			close_fs(node);
 			return -EACCES;
 		}
@@ -622,7 +622,7 @@ long sys_truncate(char * file, off_t size) {
 	if (!fn) return -error;
 
 	/* Need write permission */
-	if (!has_permission(fn, 04)) {
+	if (!has_permission(fn, W_OK)) {
 		close_fs(fn);
 		return -EACCES;
 	}
@@ -837,7 +837,7 @@ long sys_chdir(char * newdir) {
 			close_fs(chd);
 			return -ENOTDIR;
 		}
-		if (!has_permission(chd, 01)) {
+		if (!has_permission(chd, X_OK)) {
 			close_fs(chd);
 			return -EACCES;
 		}

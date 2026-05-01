@@ -401,8 +401,8 @@ int rename_file_fs(const char * src, const char * dest) {
 	if (src_parent->mount != dest_parent->mount) { out = -EXDEV; goto _nope; }
 	if (!src_parent->mount->rename) { out = -ENOTSUP; goto _nope; }
 
-	if (!has_permission(src_parent, 02) || !has_permission(src_parent, 01)) { out = -EACCES; goto _nope; }
-	if (!has_permission(dest_parent, 02) || !has_permission(dest_parent, 01)) { out = -EACCES; goto _nope; }
+	if (!has_permission(src_parent, W_OK|X_OK)) { out = -EACCES; goto _nope; }
+	if (!has_permission(dest_parent, W_OK|X_OK)) { out = -EACCES; goto _nope; }
 
 	/* Get basename of each path component */
 	const char * src_name = fs_basename(src);
@@ -461,7 +461,7 @@ int create_file_fs(char *name, mode_t permission) {
 	}
 
 	/* Need both exec and write on the parent to create a new entry */
-	if (!has_permission(parent, 02) || !has_permission(parent, 01)) {
+	if (!has_permission(parent, W_OK|X_OK)) {
 		free(path);
 		close_fs(parent);
 		return -EACCES;
@@ -512,7 +512,7 @@ int unlink_fs(char * name) {
 		return -error;
 	}
 
-	if (!has_permission(parent, 02) || !has_permission(parent, 01)) {
+	if (!has_permission(parent, W_OK|X_OK)) {
 		free(path);
 		close_fs(parent);
 		return -EACCES;
@@ -627,7 +627,7 @@ int symlink_fs(char * target, char * name) {
 	}
 
 	/* Need both exec and write on the parent to create a new entry */
-	if (!has_permission(parent, 02) || !has_permission(parent, 01)) {
+	if (!has_permission(parent, W_OK|X_OK)) {
 		free(path);
 		close_fs(parent);
 		return -EACCES;
@@ -1079,7 +1079,7 @@ fs_node_t *kopen_recur(const char *filename, uint64_t flags, uint64_t symlink_de
 
 		/* We are still searching, so this needs to be a directory. */
 		if (!(node_ptr->flags & FS_DIRECTORY)) return *error = ENOTDIR, free(path), close_fs(node_ptr), NULL;
-		if (!has_permission(node_ptr, 01)) return *error = EACCES, free(path), close_fs(node_ptr), NULL;
+		if (!has_permission(node_ptr, X_OK)) return *error = EACCES, free(path), close_fs(node_ptr), NULL;
 
 		/* Search for the requested file. */
 		fs_node_t * node_next = finddir_fs(node_ptr, path_offset);

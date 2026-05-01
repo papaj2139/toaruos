@@ -549,7 +549,7 @@ static int mkdir_tmpfs(fs_node_t * parent, char * name, mode_t permission) {
 	spin_unlock(d->lock);
 
 	/* Need both exec and write on the parent to create a new entry */
-	if (!has_permission(parent, 02) || !has_permission(parent, 01)) {
+	if (!has_permission(parent, W_OK|X_OK)) {
 		return -EACCES;
 	}
 

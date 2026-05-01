@@ -115,7 +115,7 @@ int exec(const char * path, int argc, char *const argv[], char *const env[], int
 	int error = 0;
 	fs_node_t * file = kopen_error(path, 0, &error);
 	if (!file) return -error;
-	if (!has_permission(file, 01)) return close_fs(file), -EACCES;
+	if (!has_permission(file, X_OK)) return close_fs(file), -EACCES;
 	if (file->flags & FS_DIRECTORY) return close_fs(file), -EISDIR;
 
 	unsigned char head[4];
