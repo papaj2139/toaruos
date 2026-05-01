@@ -117,7 +117,6 @@ typedef struct process {
 	unsigned int mask;
 
 	char * name;
-	char * description;
 	char ** cmdline;
 
 	char * wd_name;

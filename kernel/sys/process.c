@@ -496,7 +496,6 @@ process_t * spawn_init(void) {
 	init->thread.page_directory->refcount = 1;
 	init->thread.page_directory->directory = this_core->current_pml;
 	spin_init(init->thread.page_directory->lock);
-	init->description = strdup("[init]");
 	list_insert(process_list, (void*)init);
 
 	return init;
@@ -508,7 +507,6 @@ process_t * spawn_process(volatile process_t * parent, int flags, int close_at_f
 	proc->id          = get_next_pid();
 	proc->group       = proc->id;
 	proc->name        = strdup(parent->name);
-	proc->description = NULL;
 	proc->cmdline     = parent->cmdline; /* FIXME dup it? */
 
 	proc->user        = parent->user;
@@ -1486,7 +1484,6 @@ process_t * spawn_worker_thread(void (*entrypoint)(void * argp), const char * na
 	proc->id          = get_next_pid();
 	proc->group       = proc->id;
 	proc->name        = strdup(name);
-	proc->description = NULL;
 	proc->cmdline     = NULL;
 
 	/* Are these necessary for tasklets? Should probably all be zero. */
