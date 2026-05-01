@@ -175,6 +175,8 @@ typedef struct process {
 	struct process * process;
 } process_t;
 
+_Static_assert((__builtin_offsetof(process_t,flags) == 20), "flags is not at expected offset for assembly");
+
 typedef struct {
 	uint64_t end_tick;
 	uint64_t end_subtick;
