@@ -177,7 +177,7 @@ static void proc_status_func(fs_node_t *node) {
 		return;
 	}
 
-	process_t * parent = process_get_parent(proc);
+	process_t * parent = process_get_parent(proc->process);
 
 	char state = 'S';
 
