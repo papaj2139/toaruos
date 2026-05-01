@@ -358,13 +358,7 @@ void arch_dump_traceback(void) {
  * @param fromAddr The low address to map, should be page aligned.
  */
 static int map_more_stack(uintptr_t fromAddr) {
-	volatile process_t * volatile proc = this_core->current_process;
-
-	/* Is this thread the process leader? */
-	if (proc->group != 0) {
-		proc = process_from_pid(proc->group);
-	}
-
+	volatile process_t * volatile proc = this_core->current_process->process;
 	if (!proc) return 0;
 
 	/* Make sure nothing else is going to mess with this process's page tables */
