@@ -248,7 +248,7 @@ static void proc_status_func(fs_node_t *node) {
 			,
 			name,
 			state,
-			proc->group ? proc->group : proc->id,
+			proc->tgid,
 			proc->id,
 			parent ? parent->id : 0,
 			proc->job,

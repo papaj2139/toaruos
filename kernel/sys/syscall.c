@@ -742,11 +742,11 @@ long sys_gettid(void) {
 }
 
 long sys_setsid(void) {
-	if (this_core->current_process->job == this_core->current_process->group) {
+	if (this_core->current_process->job == this_core->current_process->tgid) {
 		return -EPERM;
 	}
-	this_core->current_process->session = this_core->current_process->group;
-	this_core->current_process->job = this_core->current_process->group;
+	this_core->current_process->session = this_core->current_process->tgid;
+	this_core->current_process->job = this_core->current_process->tgid;
 	return this_core->current_process->session;
 }
 
@@ -764,12 +764,12 @@ long sys_setpgid(pid_t pid, pid_t pgid) {
 	if (!proc) {
 		return -ESRCH;
 	}
-	if (proc->session != this_core->current_process->session || proc->session == proc->group) {
+	if (proc->session != this_core->current_process->session || proc->session == proc->tgid) {
 		return -EPERM;
 	}
 
 	if (pgid == 0) {
-		proc->job = proc->group;
+		proc->job = proc->tgid;
 	} else {
 		process_t * pgroup = process_from_pid(pgid);
 

@@ -445,7 +445,7 @@ process_t * spawn_init(void) {
 	init->process = init;
 	init->tree_entry = process_tree->root;
 	init->id         = 1;
-	init->group      = 0;
+	init->tgid       = 1;
 	init->job        = 1;
 	init->session    = 1;
 	init->name       = strdup("init");
@@ -505,7 +505,7 @@ process_t * spawn_process(volatile process_t * parent, int flags, int close_at_f
 	process_t * proc = calloc(1,sizeof(process_t));
 
 	proc->id          = get_next_pid();
-	proc->group       = proc->id;
+	proc->tgid        = proc->id;
 	proc->name        = strdup(parent->name);
 	proc->cmdline     = parent->cmdline; /* FIXME dup it? */
 
@@ -1291,12 +1291,12 @@ process_t * process_get_parent(process_t * process) {
 void task_exit(long retval) {
 	this_core->current_process->status = retval & 0xFFFF;
 
-	if (this_core->current_process->group == this_core->current_process->id) {
+	if (this_core->current_process->process == this_core->current_process) {
 		/* If is thread leader, kill threads */
 		pid_t * children = NULL;
-		size_t thread_count = process_collect_by(offsetof(process_t,group), sizeof(pid_t), (void*)&this_core->current_process->group, &children, 1);
+		size_t thread_count = process_collect_by(offsetof(process_t,tgid), sizeof(pid_t), (void*)&this_core->current_process->tgid, &children, 1);
 		for (size_t i = 0; i < thread_count; ++i) {
-			if (children[i] == this_core->current_process->group) continue;
+			if (children[i] == this_core->current_process->tgid) continue;
 			send_signal(children[i], SIGKILL, 1);
 		}
 		if (children) free(children);
@@ -1431,7 +1431,7 @@ pid_t clone(uintptr_t new_stack, uintptr_t thread_func, uintptr_t arg) {
 	process_t * parent = (process_t *)this_core->current_process;
 	process_t * new_proc = spawn_process(parent->process, 1, 0);
 	new_proc->process = parent->process;
-	new_proc->group = parent->process->id;
+	new_proc->tgid = parent->process->id;
 	new_proc->thread.page_directory = this_core->current_process->thread.page_directory;
 	spin_lock(new_proc->thread.page_directory->lock);
 	new_proc->thread.page_directory->refcount++;
@@ -1482,7 +1482,7 @@ process_t * spawn_worker_thread(void (*entrypoint)(void * argp), const char * na
 
 	proc->process     = proc;
 	proc->id          = get_next_pid();
-	proc->group       = proc->id;
+	proc->tgid        = proc->id;
 	proc->name        = strdup(name);
 	proc->cmdline     = NULL;
 
@@ -1579,7 +1579,7 @@ size_t process_collect_by(off_t field, size_t fieldSize, void * target, pid_t **
 	spin_lock(tree_lock);
 	foreach(node, process_list) {
 		process_t * proc = node->value;
-		if (!threads && proc->group != proc->id) continue; /* Only collect thread group leaders */
+		if (!threads && proc->tgid != proc->id) continue; /* Only collect thread group leaders */
 		if (!memcmp((char*)proc + field, target, fieldSize)) {
 			if (count == cap) {
 				cap = cap ? cap * 2 : 16;
@@ -1614,13 +1614,13 @@ int group_send_signal(pid_t group, int signal, int force_root) {
 	size_t count = process_collect_by(offsetof(process_t,job),sizeof(pid_t),&group,&pids, 0);
 
 	for (size_t i = 0; i < count; ++i) {
-		if (pids[i] == this_core->current_process->group) kill_self = 1;
+		if (pids[i] == this_core->current_process->tgid) kill_self = 1;
 		else if (send_signal(pids[i], signal, force_root) == 0) killed_something = 1;
 	}
 
 	if (pids) free(pids);
 
-	if (kill_self && send_signal(this_core->current_process->group, signal, force_root) == 0) killed_something = 1;
+	if (kill_self && send_signal(this_core->current_process->tgid, signal, force_root) == 0) killed_something = 1;
 	return killed_something ? 0 : -ESRCH;
 }
 
@@ -1645,13 +1645,13 @@ int session_send_signal(pid_t session, int signal, int force_root) {
 	size_t count = process_collect_by(offsetof(process_t,session),sizeof(pid_t),&session,&pids, 0);
 
 	for (size_t i = 0; i < count; ++i) {
-		if (pids[i] == this_core->current_process->group) kill_self = 1;
+		if (pids[i] == this_core->current_process->tgid) kill_self = 1;
 		else if (send_signal(pids[i], signal, force_root) == 0) killed_something = 1;
 	}
 
 	if (pids) free(pids);
 
-	if (kill_self && send_signal(this_core->current_process->group, signal, force_root) == 0) killed_something = 1;
+	if (kill_self && send_signal(this_core->current_process->tgid, signal, force_root) == 0) killed_something = 1;
 	return killed_something ? 0 : -ESRCH;
 }
 
@@ -1686,7 +1686,7 @@ void process_send_sigchld(process_t * proc, process_t * parent, int reason, int 
 		cause.si_uid = proc->real_user;
 		cause.si_status = status;
 
-		send_signal_info(parent->group, SIGCHLD, 1, &cause);
+		send_signal_info(parent->tgid, SIGCHLD, 1, &cause);
 		wakeup_queue(parent->wait_queue);
 		spin_unlock(parent->wait_lock);
 	}

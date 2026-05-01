@@ -101,7 +101,7 @@ struct signal_config {
 
 typedef struct process {
 	pid_t id;    /* PID */
-	pid_t group; /* thread group */
+	pid_t tgid; /* thread group */
 	pid_t job;   /* tty job */
 	pid_t session; /* tty session */
 	int status; /* status code */
