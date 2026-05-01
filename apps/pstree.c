@@ -209,7 +209,8 @@ int pstree_callback(struct process * proc, void *_ctx) {
 	if (proc->ppid == 0 && proc->pid == 1) {
 		tree_set_root(procs, proc);
 	} else {
-		tree_node_t * parent = tree_find(procs,(void *)(uintptr_t)proc->ppid,find_pid);
+		pid_t ppid = (proc->tgid != proc->pid ? proc->tgid : proc->ppid);
+		tree_node_t * parent = tree_find(procs,(void *)(uintptr_t)ppid,find_pid);
 		if (parent) {
 			tree_node_insert_child(procs, parent, proc);
 		}
