@@ -530,7 +530,6 @@ process_t * spawn_process(volatile process_t * parent, int flags, int close_at_f
 	proc->thread.context.sp = 0;
 	proc->thread.context.bp = 0;
 	proc->thread.context.ip = 0;
-	memcpy((void*)proc->thread.fp_regs, (void*)parent->thread.fp_regs, 512);
 
 	/* Entry is only stored for reference. */
 	proc->image.entry       = parent->image.entry;
@@ -1397,6 +1396,8 @@ pid_t fork(void) {
 	memcpy(new_proc->signals, parent->signals, sizeof(struct signal_config) * (NUMSIGNALS+1));
 	new_proc->blocked_signals = parent->blocked_signals;
 
+	arch_save_floating(new_proc);
+
 	struct regs r;
 	memcpy(&r, parent->syscall_registers, sizeof(struct regs));
 	sp = new_proc->image.stack;
@@ -1440,6 +1441,8 @@ pid_t clone(uintptr_t new_stack, uintptr_t thread_func, uintptr_t arg) {
 
 	new_proc->signals = parent->process->signals;
 	new_proc->blocked_signals = parent->blocked_signals;
+
+	arch_save_floating(new_proc);
 
 	struct regs r;
 	memcpy(&r, parent->syscall_registers, sizeof(struct regs));
