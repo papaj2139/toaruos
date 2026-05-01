@@ -106,6 +106,8 @@ struct vfs_entry {
 extern fs_node_t *fs_root;
 extern int pty_create(void *size, fs_node_t ** fs_master, fs_node_t ** fs_slave);
 
+#include <bits/access.h>
+
 int has_permission(fs_node_t *node, int permission_bit);
 ssize_t read_fs(fs_node_t *node,  off_t offset, size_t size, uint8_t *buffer);
 ssize_t write_fs(fs_node_t *node, off_t offset, size_t size, uint8_t *buffer);

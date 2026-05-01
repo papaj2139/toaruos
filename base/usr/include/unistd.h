@@ -89,10 +89,7 @@ extern int ttyname_r(int fd, char * buf, size_t buflen);
 #define SEEK_CUR 1
 #define SEEK_END 2
 
-#define F_OK 0
-#define R_OK 4
-#define W_OK 2
-#define X_OK 1
+#include <bits/access.h>
 
 extern int gethostname(char * name, size_t len);
 extern int sethostname(const char * name, size_t len);
