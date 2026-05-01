@@ -1035,7 +1035,7 @@ static int wait_candidate(volatile process_t * parent, int pid, int options, vol
 		if (proc->job == -pid || proc->id == -pid) return 1;
 	} else if (pid == 0) {
 		/* Matches our group ID */
-		if (proc->job == parent->id) return 1;
+		if (proc->job == parent->job) return 1;
 	} else if (pid > 0) {
 		/* Specific pid */
 		if (proc->id == pid) return 1;
