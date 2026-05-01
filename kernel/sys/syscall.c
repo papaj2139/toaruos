@@ -46,10 +46,7 @@ int ptr_validate(void * ptr, const char * syscall) {
 
 long sys_sbrk(ssize_t size) {
 	if (size & 0xFFF) return -EINVAL;
-	volatile process_t * volatile proc = this_core->current_process;
-	if (proc->group != 0) {
-		proc = process_from_pid(proc->group);
-	}
+	volatile process_t * volatile proc = this_core->current_process->process;
 	if (!proc) return -EINVAL;
 	spin_lock(proc->image.lock);
 	uintptr_t out = proc->image.heap;
@@ -106,8 +103,7 @@ long sys_sysfunc(long fn, char ** args) {
 			extern void mmu_unmap_user(uintptr_t addr, size_t size);
 			PTR_VALIDATE(&args[0]);
 			PTR_VALIDATE(&args[1]);
-			volatile process_t * volatile proc = this_core->current_process;
-			if (proc->group != 0) proc = process_from_pid(proc->group);
+			volatile process_t * volatile proc = this_core->current_process->process;
 			if (!proc) return -EFAULT;
 			spin_lock(proc->image.lock);
 			mmu_unmap_user((uintptr_t)args[0], (size_t)args[1]);
@@ -134,8 +130,7 @@ long sys_sysfunc(long fn, char ** args) {
 			if (!args) return -EFAULT;
 			if (!PTR_INRANGE(args[0])) return -EFAULT;
 			if (!args[0]) return -EFAULT;
-			volatile process_t * volatile proc = this_core->current_process;
-			if (proc->group != 0) proc = process_from_pid(proc->group);
+			volatile process_t * volatile proc = this_core->current_process->process;
 			if (!proc) return -EFAULT;
 			spin_lock(proc->image.lock);
 			proc->image.heap = (uintptr_t)args[0];
@@ -149,8 +144,7 @@ long sys_sysfunc(long fn, char ** args) {
 			 *        probably also interact with the SHM subsystem... */
 			PTR_VALIDATE(args);
 			if (!args) return -EFAULT;
-			volatile process_t * volatile proc = this_core->current_process;
-			if (proc->group != 0) proc = process_from_pid(proc->group);
+			volatile process_t * volatile proc = this_core->current_process->process;
 			if (!proc) return -EFAULT;
 			spin_lock(proc->image.lock);
 			/* Align inputs */
@@ -740,7 +734,7 @@ long sys_setgroups(int size, const gid_t list[]) {
 
 long sys_getpid(void) {
 	/* The user actually wants the pid of the originating thread (which can be us). */
-	return this_core->current_process->group ? (long)this_core->current_process->group : (long)this_core->current_process->id;
+	return this_core->current_process->process->id;
 }
 
 long sys_gettid(void) {
@@ -804,11 +798,7 @@ long sys_getpgid(pid_t pid) {
 }
 
 long sys_getppid(void) {
-	process_t * proc = (process_t*)this_core->current_process;
-	if (proc->group != 0) {
-		process_t * thread_owner = process_from_pid(proc->group);
-		proc = thread_owner ? thread_owner : proc;
-	}
+	process_t * proc = (process_t*)this_core->current_process->process;
 	process_t * parent = process_get_parent(proc);
 	if (!parent) return 0;
 	return parent->id;

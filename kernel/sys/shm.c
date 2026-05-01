@@ -235,11 +235,7 @@ static size_t chunk_size (shm_chunk_t * chunk) {
 
 void * shm_obtain (char * path, size_t * size) {
 	spin_lock(bsl);
-	volatile process_t * volatile proc = this_core->current_process;
-
-	if (proc->group != 0) {
-		proc = process_from_pid(proc->group);
-	}
+	volatile process_t * volatile proc = this_core->current_process->process;
 
 	shm_node_t * node = get_node(path, 1); // (if it exists, just get it)
 	shm_chunk_t * chunk = node->chunk;
@@ -275,11 +271,7 @@ void * shm_obtain (char * path, size_t * size) {
 
 int shm_release (char * path) {
 	spin_lock(bsl);
-	process_t * proc = (process_t *)this_core->current_process;
-
-	if (proc->group != 0) {
-		proc = process_from_pid(proc->group);
-	}
+	process_t * proc = (process_t *)this_core->current_process->process;
 
 	/* First, find the right chunk */
 	shm_node_t * _node = get_node(path, 0);
